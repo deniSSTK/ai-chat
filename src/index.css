@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@100..900&display=swap');
+
+:root {
+    --black: #000000;
+    --white: #E4E4E4;
+    --white-buttons: #E8EAED;
+    --grey: #737373;
+    --grey-light: #B8B8B8;
+    --blue: #3047EC;
+    --grey-message-bot: #F2F2F2;
+
+    --micro-button-gradient: radial-gradient(circle, #000, #595959)
+}
+
+html, body {
+    padding: 0;
+    margin: 0;
+}
+
+* {
+    font-family: "Onest", serif;
+    font-style: normal;
+    font-weight: normal;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button {
+    border: none;
+    outline: none;
+    background: none;
+}
