@@ -17,6 +17,13 @@ interface Message {
     user: "bot" | "user";
     content: string;
     time: number;
+    formRequest?: FormRequest;
+}
+
+export interface FormRequest {
+    name: string,
+    param: string;
+    description: string;
 }
 
 const client = Millis.createClient({
@@ -31,6 +38,9 @@ export default function App() {
     const [userInputStatus, setUserInputStatus] = useState<userInputEnum>(userInputEnum.TEXT);
     const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
     const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+
+    const [emailResponses, setEmailResponses] = useState<{ [key: number]: string }>({});
+    const [emailInput, setEmailInput] = useState("");
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -117,9 +127,33 @@ export default function App() {
             setIsBotSpeaking(false);
         });
 
-        client.on('onfunction', (text: string, payload: { name: string, params: object }) => {
-            console.log(text, payload);
-        })
+        client.on("open_web_form", (data: FormRequest) => {
+            console.log(data);
+            setMessages((prevMessages) => {
+                const existingMessageIndex = prevMessages.findIndex(
+                    (msg) => msg.formRequest && msg.formRequest.param === data.param
+                );
+
+                if (existingMessageIndex !== -1) {
+                    const updatedMessages = [...prevMessages];
+                    updatedMessages[existingMessageIndex] = {
+                        ...updatedMessages[existingMessageIndex],
+                        content: data.description,
+                        formRequest: data,
+                    };
+                    return updatedMessages;
+                } else {
+                    return [
+                        ...prevMessages,
+                        { user: "bot", content: data.description, time: Date.now(), formRequest: data },
+                    ];
+                }
+            });
+        });
+
+        client.on("onfunction", (text: string, data: {name: string, params: object, result?: string}) => {
+            console.log(text, data);
+        });
 
     }, [isBotSpeaking, messages]);
 
@@ -188,6 +222,26 @@ export default function App() {
         setCallState(State.IDLE);
     }
 
+    function newMessage(user: "bot" | "user", content: string) {
+        setMessages((prevMessages) => [
+            ...prevMessages,
+            {user, content, time: Date.now() },
+        ])
+    }
+
+    const handleFormSubmission = (res: string | null, formRequest: FormRequest) => {
+        console.log(formRequest);
+        console.log(res)
+        if (res && formRequest) {
+            client.send(JSON.stringify({"method": "web_form_response", "data": {[formRequest.param]: res}}));
+            newMessage("user", "Email sent!")
+        } else if (!res && formRequest){
+            client.send(JSON.stringify({"method": "web_form_response", "data": {[formRequest.param]: null, "reason": "User didn't want to share the info"}}));
+            newMessage("user", "Email didn't sent!")
+        }
+        setEmailInput("");
+    }
+
     return (
         <div className={"chat-widget"}>
             <div className={"header"}>
@@ -212,6 +266,23 @@ export default function App() {
                                 {message.content}
                                 {activeMessageIndex === index && (
                                     <span className="typing-indicator">...</span>
+                                )}
+                                {message.formRequest && message.formRequest.description.includes("Please provide your email address") && (
+                                    <div className="email-form">
+                                        <input
+                                            type="email"
+                                            value={emailInput}
+                                            onChange={(e) => setEmailInput(e.target.value)}
+                                            placeholder="Enter your email"
+                                            className="email-input"
+                                        />
+                                        <button
+                                            onClick={() => handleFormSubmission(emailInput, message.formRequest!)}
+                                            className="email-submit-button"
+                                        >
+                                            Submit
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
